@@ -123,14 +123,15 @@ int ExecuteProtocol() {
 
   // Execute ClientRoundOne, and wait for response from ServerRoundTwo.
   std::cout
-      << "Client: Received encrypted set from the server, double encrypting..."
+      << "[Round 1] Client: Received encrypted set from the server, double encrypting..."
       << std::endl;
-  std::cout << "Client: Sending double encrypted server data and "
+  std::cout << "[Round 1] Client: Sending double encrypted server data and "
                "single-encrypted client data to the server."
             << std::endl
-            << "Client: Waiting for encrypted intersection sum..." << std::endl;
+            << "[Round 1] Client: Waiting for encrypted intersection sum..." << std::endl;
   auto client_round_one_status =
       client->Handle(server_round_one, &invoke_server_handle_message_sink);
+      
   if (!client_round_one_status.ok()) {
     std::cerr << "Client::ExecuteProtocol: failed to ReEncryptSet: "
               << client_round_one_status << std::endl;
@@ -138,10 +139,10 @@ int ExecuteProtocol() {
   }
 
   // Execute ServerRoundTwo.
-  std::cout << "Client: Sending double encrypted server data and "
+  std::cout << "[Round 2] Client: Sending double encrypted server data and "
                "single-encrypted client data to the server."
             << std::endl
-            << "Client: Waiting for encrypted intersection sum..." << std::endl;
+            << "[Round 2] Client: Waiting for encrypted intersection sum..." << std::endl;
   ServerMessage server_round_two =
       invoke_server_handle_message_sink.last_server_response();
 

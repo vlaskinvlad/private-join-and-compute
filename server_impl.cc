@@ -27,7 +27,7 @@ using ::private_join_and_compute::ECCommutativeCipher;
 using ::private_join_and_compute::PublicPaillier;
 
 namespace private_join_and_compute {
-
+ 
 StatusOr<PrivateIntersectionSumServerMessage::ServerRoundOne>
 PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
   if (ec_cipher_ != nullptr) {
@@ -35,11 +35,14 @@ PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
   }
   StatusOr<std::unique_ptr<ECCommutativeCipher>> ec_cipher =
       ECCommutativeCipher::CreateWithNewKey(
-          NID_secp224r1, ECCommutativeCipher::HashType::SHA512);
+          NID_secp224r1, ECCommutativeCipher::HashType::SHA256);
   if (!ec_cipher.ok()) {
     return ec_cipher.status();
   }
   ec_cipher_ = std::move(ec_cipher.ValueOrDie());
+
+  std::cout 
+    << "[Round1] Server got cipher, encrypting elements and sending to client" << std::endl;
 
   PrivateIntersectionSumServerMessage::ServerRoundOne result;
   for (const std::string& input : inputs_) {
@@ -51,6 +54,8 @@ PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
     }
     *encrypted->mutable_element() = encrypted_element.ValueOrDie();
   }
+
+  
 
   return result;
 }
@@ -69,11 +74,16 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
   std::vector<EncryptedElement> server_set, client_set, intersection;
 
   // First, we re-encrypt the client party's set, so that we can compare with
-  // the re-encrypted set received from the client.
+  // the re-encrypted set received from Server 
+  std::cout 
+    << "[Round2] Reencrypt client elements" << std::endl;
+
   for (const EncryptedElement& element :
        client_message.encrypted_set().elements()) {
+
     EncryptedElement reencrypted;
-    *reencrypted.mutable_associated_data() = element.associated_data();
+    // client assosiated data is empty    
+    // *reencrypted.mutable_associated_data() = element.associated_data();
     StatusOr<std::string> reenc = ec_cipher_->ReEncrypt(element.element());
     if (!reenc.ok()) {
       return reenc.status();
@@ -85,6 +95,10 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
        client_message.reencrypted_set().elements()) {
     server_set.push_back(element);
   }
+
+  std::cout 
+    << "[Round2] Finding the intersection (sorting & intersection)" << std::endl;
+
 
   // std::set_intersection requires sorted inputs.
   std::sort(client_set.begin(), client_set.end(),
@@ -102,6 +116,8 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
         return a.element() < b.element();
       });
 
+    std::cout << "[Round2] intersection size: " << intersection.size() << " sending back to client"<< std::endl;
+
   // From the intersection we compute the sum of the associated values, which is
   // the result we return to the client.
   StatusOr<BigNum> encrypted_zero =
@@ -110,10 +126,11 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
     return encrypted_zero.status();
   }
   BigNum sum = encrypted_zero.ValueOrDie();
-  for (const EncryptedElement& element : intersection) {
-    sum =
-        public_paillier.Add(sum, ctx_->CreateBigNum(element.associated_data()));
-  }
+  // omitting computing the intersection
+  // for (const EncryptedElement& element : intersection) {
+  //   sum =
+  //       public_paillier.Add(sum, ctx_->CreateBigNum(element.associated_data()));
+  // }
 
   *result.mutable_encrypted_sum() = sum.ToBytes();
   result.set_intersection_size(intersection.size());

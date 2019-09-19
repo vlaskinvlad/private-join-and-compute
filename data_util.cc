@@ -346,6 +346,7 @@ ReadClientDatasetFromFile(absl::string_view client_data_filename,
   std::vector<BigNum> client_associated_values;
   std::string line;
   int64_t line_number = 0;
+  
   while (getline(client_data_file, line)) {
     std::vector<std::string> columns = SplitCsvLine(line);
     if (columns.size() != 2) {
@@ -364,8 +365,12 @@ ReadClientDatasetFromFile(absl::string_view client_data_filename,
                        "nonnegative associated value at line number",
                        line_number));
     }
-    client_associated_values.push_back(
-        context->CreateBigNum(parsed_associated_value));
+    // we don't need associated values this time
+    
+      client_associated_values.push_back(
+          context->CreateBigNum(parsed_associated_value));
+    
+    
     line_number++;
   }
 
@@ -376,7 +381,8 @@ ReadClientDatasetFromFile(absl::string_view client_data_filename,
         "ReadClientDatasetFromFile: Couldn't close client data file: ",
         client_data_filename));
   }
-
+  std::cout << "[Data] Client identifiers: " << client_identifiers.size() << " associate_values: " 
+            << client_associated_values.size() << std::endl;
   return std::make_pair(std::move(client_identifiers),
                         std::move(client_associated_values));
 }

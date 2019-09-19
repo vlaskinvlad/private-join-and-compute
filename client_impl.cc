@@ -34,29 +34,41 @@ PrivateIntersectionSumProtocolClientImpl::
       intersection_sum_(ctx->Zero()),
       ec_cipher_(
           std::move(ECCommutativeCipher::CreateWithNewKey(
-                        NID_secp224r1, ECCommutativeCipher::HashType::SHA512)
+                        NID_secp224r1, ECCommutativeCipher::HashType::SHA256)
                         .ValueOrDie())) {}
 
 StatusOr<PrivateIntersectionSumClientMessage::ClientRoundOne>
 PrivateIntersectionSumProtocolClientImpl::ReEncryptSet(
     const PrivateIntersectionSumServerMessage::ServerRoundOne& message) {
+
+  std::cout << "[Round 1] EncryptSet, encrypt client elements:  " << elements_.size() <<  std::endl;    
+  
   private_paillier_ = absl::make_unique<PrivatePaillier>(ctx_, p_, q_, 2);
   BigNum pk = p_ * q_;
   PrivateIntersectionSumClientMessage::ClientRoundOne result;
   *result.mutable_public_key() = pk.ToBytes();
+
   for (size_t i = 0; i < elements_.size(); i++) {
     EncryptedElement* element = result.mutable_encrypted_set()->add_elements();
     StatusOr<std::string> encrypted = ec_cipher_->Encrypt(elements_[i]);
     if (!encrypted.ok()) {
       return encrypted.status();
     }
-    *element->mutable_element() = encrypted.ValueOrDie();
-    StatusOr<BigNum> value = private_paillier_->Encrypt(values_[i]);
-    if (!value.ok()) {
-      return value.status();
+
+    // values are null
+    if (i < values_.size()) {
+      *element->mutable_element() = encrypted.ValueOrDie();
+      StatusOr<BigNum> value = private_paillier_->Encrypt(values_[i]);
+      if (!value.ok()) {
+        return value.status();
+      }
+      *element->mutable_associated_data() = value.ValueOrDie().ToBytes();
+    } else {
+      std::cout << "i "<< i << " is bigger than values size " << std::endl;
     }
-    *element->mutable_associated_data() = value.ValueOrDie().ToBytes();
   }
+
+  std::cout << "[Round 1]  REEncrypt server elements " << message.encrypted_set().elements().size() << std::endl;
 
   std::vector<EncryptedElement> reencrypted_set;
   for (const EncryptedElement& element : message.encrypted_set().elements()) {
@@ -76,12 +88,17 @@ PrivateIntersectionSumProtocolClientImpl::ReEncryptSet(
     *result.mutable_reencrypted_set()->add_elements() = element;
   }
 
+  std::cout << "[Round 1] done" << std::endl;
+
   return result;
 }
 
 StatusOr<std::pair<int64_t, BigNum>>
 PrivateIntersectionSumProtocolClientImpl::DecryptSum(
     const PrivateIntersectionSumServerMessage::ServerRoundTwo& server_message) {
+
+  std::cout << "[Round 2] DecryptSum" << std::endl;
+
   if (private_paillier_ == nullptr) {
     return InvalidArgumentError("Called DecryptSum before ReEncryptSet.");
   }
@@ -122,6 +139,9 @@ Status PrivateIntersectionSumProtocolClientImpl::Handle(
   if (server_message.private_intersection_sum_server_message()
           .has_server_round_one()) {
     // Handle the server round one message.
+
+    std::cout << "[Round 1] Reencrypting message from server" << std::endl;
+
     ClientMessage client_message;
 
     auto maybe_client_round_one =

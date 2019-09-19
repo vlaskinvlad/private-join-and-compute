@@ -58,6 +58,11 @@ int RunServer() {
   builder.AddListeningPort(FLAGS_port,
                            ::grpc::experimental::LocalServerCredentials(
                                grpc_local_connect_type::LOCAL_TCP));
+
+
+  int message_size = 124194304;
+  builder.SetMaxSendMessageSize(message_size).SetMaxReceiveMessageSize(message_size);  //124 MB;
+  
   builder.RegisterService(&service);
   std::unique_ptr<::grpc::Server> grpc_server(builder.BuildAndStart());
 
