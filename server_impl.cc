@@ -55,8 +55,6 @@ PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
     *encrypted->mutable_element() = encrypted_element.ValueOrDie();
   }
 
-  
-
   return result;
 }
 
