@@ -1,7 +1,7 @@
 Todo:
 - Add compression on the server [X]
 - Add Docker [X]
-- Turn on SSL
+- Turn on SSL [X]
 - Run for million sets
 
 ```

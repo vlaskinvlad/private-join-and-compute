@@ -14,6 +14,7 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>  // NOLINT
@@ -33,12 +34,31 @@
 #include "protocol_server.h"
 #include "absl/memory/memory.h"
 
+
 DEFINE_string(port, "0.0.0.0:10501", "Port on which to listen");
 DEFINE_string(server_data_file, "",
               "The file from which to read the server database.");
 
 DEFINE_int32(message_size, 124194304, "Bytes max message size");
 DEFINE_uint32(compression_level, 3, "Compression level 0 no compression, 1 low, 2 med");
+
+
+void
+read ( const std::string& filename, std::string& data )
+{
+        std::ifstream file ( filename.c_str (), std::ios::in );
+	if ( file.is_open() )
+	{
+		std::stringstream ss;
+		ss << file.rdbuf();
+
+		file.close();
+
+		data = ss.str();
+	}
+	return;
+}
+
 
 int RunServer() {
   std::cout << "Server: loading data... " << std::endl;
@@ -58,9 +78,29 @@ int RunServer() {
 
   ::grpc::ServerBuilder builder;
   // Consider grpc::SslServerCredentials if not running locally.
-  builder.AddListeningPort(FLAGS_port,
-                           ::grpc::experimental::LocalServerCredentials(
-                               grpc_local_connect_type::LOCAL_TCP));
+
+  std::string key;
+	std::string cert;
+	std::string root;
+
+  read ( "server.crt", cert );
+	read ( "server.key", key );
+	read ( "ca.crt", root );
+
+  grpc::SslServerCredentialsOptions::PemKeyCertPair keycert =
+	{
+		key,
+		cert
+	};
+  grpc::SslServerCredentialsOptions sslOps;
+  sslOps.pem_root_certs = root;
+	sslOps.pem_key_cert_pairs.push_back ( keycert );
+  builder.AddListeningPort(FLAGS_port, grpc::SslServerCredentials(sslOps));
+  
+  //auto credentials =  ::grpc::experimental::LocalServerCredentials(grpc_local_connect_type::LOCAL_TCP);
+  //builder.AddListeningPort(FLAGS_port, credentials);
+
+
 
   ::grpc_compression_level compression_level = static_cast<grpc_compression_level>(FLAGS_compression_level);
 

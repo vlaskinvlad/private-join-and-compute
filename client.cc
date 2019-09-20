@@ -16,6 +16,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <fstream>
 
 #include "gflags/gflags.h"
 
@@ -46,6 +47,23 @@ DEFINE_int32(
 
 namespace private_join_and_compute {
 namespace {
+
+
+void
+read ( const std::string& filename, std::string& data )
+{
+        std::ifstream file ( filename.c_str (), std::ios::in );
+	if ( file.is_open() )
+	{
+		std::stringstream ss;
+		ss << file.rdbuf();
+
+		file.close();
+
+		data = ss.str();
+	}
+	return;
+}
 
 class InvokeServerHandleClientMessageSink : public MessageSink<ClientMessage> {
  public:
@@ -99,10 +117,31 @@ int ExecuteProtocol() {
           FLAGS_paillier_modulus_size);
 
   // Consider grpc::SslServerCredentials if not running locally.
-  std::unique_ptr<PrivateJoinAndComputeRpc::Stub> stub =
-      PrivateJoinAndComputeRpc::NewStub(::grpc::CreateChannel(
-          FLAGS_port, ::grpc::experimental::LocalCredentials(
-                          grpc_local_connect_type::LOCAL_TCP)));
+  std::string cert;
+	std::string key;
+	std::string root;
+
+  read ( "client.crt", cert );
+	read ( "client.key", key );
+	read ( "ca.crt", root );
+
+  grpc::SslCredentialsOptions opts =
+		{
+			root,
+			key,
+			cert
+		};
+
+  
+  auto channel_creds = ::grpc::SslCredentials(opts);
+  auto channel = grpc::CreateChannel(FLAGS_port, channel_creds);
+  std::unique_ptr<PrivateJoinAndComputeRpc::Stub> stub = PrivateJoinAndComputeRpc::NewStub(channel);
+
+
+  // std::unique_ptr<PrivateJoinAndComputeRpc::Stub> stub =
+  //     PrivateJoinAndComputeRpc::NewStub(::grpc::CreateChannel(
+  //         FLAGS_port, ::grpc::experimental::LocalCredentials(
+  //                         grpc_local_connect_type::LOCAL_TCP)));
   InvokeServerHandleClientMessageSink invoke_server_handle_message_sink(
       std::move(stub));
 

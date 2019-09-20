@@ -1,2 +1,5 @@
 ./bazel-*
 .vscode/
+*.key
+*.crt
+*.csr
