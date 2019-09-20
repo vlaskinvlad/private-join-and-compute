@@ -61,8 +61,7 @@ PrivateIntersectionSumProtocolClientImpl::ReEncryptSet(
       StatusOr<BigNum> value = private_paillier_->Encrypt(values_[i]);
       if (!value.ok()) {
         return value.status();
-      }
-      *element->mutable_associated_data() = value.ValueOrDie().ToBytes();
+      }      
     } else {
       std::cout << "i "<< i << " is bigger than values size " << std::endl;
     }

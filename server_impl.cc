@@ -83,7 +83,6 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
 
     EncryptedElement reencrypted;
     // client assosiated data is empty    
-    // *reencrypted.mutable_associated_data() = element.associated_data();
     StatusOr<std::string> reenc = ec_cipher_->ReEncrypt(element.element());
     if (!reenc.ok()) {
       return reenc.status();

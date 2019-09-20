@@ -25,5 +25,4 @@ message EncryptedSet {
 // Holds an encrypted value and possibly encrypted associated data.
 message EncryptedElement {
   optional bytes element = 1;
-  optional bytes associated_data = 2;
 }

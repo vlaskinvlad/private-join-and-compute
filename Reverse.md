@@ -1,3 +1,9 @@
+Todo:
+- Add compression on the server [X]
+- Add Docker
+- Turn on SSL
+- Run for million sets
+
 ```
 Server:
 PrivateIntersectionSumServerMessage:

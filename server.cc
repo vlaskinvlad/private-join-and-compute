@@ -37,6 +37,9 @@ DEFINE_string(port, "0.0.0.0:10501", "Port on which to listen");
 DEFINE_string(server_data_file, "",
               "The file from which to read the server database.");
 
+DEFINE_int32(message_size, 124194304, "Bytes max message size");
+DEFINE_uint32(compression_level, 3, "Compression level 0 no compression, 1 low, 2 med");
+
 int RunServer() {
   std::cout << "Server: loading data... " << std::endl;
   auto maybe_server_identifiers =
@@ -59,11 +62,13 @@ int RunServer() {
                            ::grpc::experimental::LocalServerCredentials(
                                grpc_local_connect_type::LOCAL_TCP));
 
+  ::grpc_compression_level compression_level = static_cast<grpc_compression_level>(FLAGS_compression_level);
 
-  int message_size = 124194304;
-  builder.SetMaxSendMessageSize(message_size).SetMaxReceiveMessageSize(message_size);  //124 MB;
+  builder.SetMaxSendMessageSize(FLAGS_message_size)
+  .SetMaxReceiveMessageSize(FLAGS_message_size)
+  .SetDefaultCompressionLevel(compression_level);
   
-  builder.RegisterService(&service);
+  builder.RegisterService(&service  );
   std::unique_ptr<::grpc::Server> grpc_server(builder.BuildAndStart());
 
   // Run the server on a background thread.
