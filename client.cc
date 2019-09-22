@@ -35,6 +35,7 @@
 #include "util/status.inc"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "timer.h"
 
 DEFINE_string(port, "0.0.0.0:10501", "Port on which to contact server");
 DEFINE_string(client_data_file, "",
@@ -97,6 +98,9 @@ class InvokeServerHandleClientMessageSink : public MessageSink<ClientMessage> {
 int ExecuteProtocol() {
   ::private_join_and_compute::Context context;
 
+  auto t = std::unique_ptr<Timer>(new Timer);
+  auto t_total = std::unique_ptr<Timer>(new Timer);
+
   std::cout << "Client: Loading data..." << std::endl;
   auto maybe_client_identifiers_and_associated_values =
       ::private_join_and_compute::ReadClientDatasetFromFile(FLAGS_client_data_file, &context);
@@ -109,12 +113,18 @@ int ExecuteProtocol() {
   auto client_identifiers_and_associated_values =
       std::move(maybe_client_identifiers_and_associated_values.ValueOrDie());
 
-  std::cout << "Client: Generating keys..." << std::endl;
+  t->cout_elapsed("Client reading data");
+  t->reset();
+
+  //std::cout << "Client: Generating keys..." << std::endl;
   std::unique_ptr<::private_join_and_compute::ProtocolClient> client =
       absl::make_unique<::private_join_and_compute::PrivateIntersectionSumProtocolClientImpl>(
           &context, std::move(client_identifiers_and_associated_values.first),
           std::move(client_identifiers_and_associated_values.second),
           FLAGS_paillier_modulus_size);
+  
+  t->cout_elapsed("Client generating keys");
+  t->reset();
 
   // Consider grpc::SslServerCredentials if not running locally.
   std::string cert;
@@ -146,12 +156,14 @@ int ExecuteProtocol() {
       std::move(stub));
 
   // Execute StartProtocol and wait for response from ServerRoundOne.
-  std::cout
-      << "Client: Starting the protocol." << std::endl
-      << "Client: Waiting for response and encrypted set from the server..."
-      << std::endl;
+  // std::cout
+  //     << "Client: Starting the protocol." << std::endl
+  //     << "Client: Waiting for response and encrypted set from the server..."
+  //     << std::endl;
   auto start_protocol_status =
       client->StartProtocol(&invoke_server_handle_message_sink);
+  
+  t->cout_elapsed("Client first server response");
   if (!start_protocol_status.ok()) {
     std::cerr << "Client::ExecuteProtocol: failed to StartProtocol: "
               << start_protocol_status << std::endl;
@@ -161,13 +173,13 @@ int ExecuteProtocol() {
       invoke_server_handle_message_sink.last_server_response();
 
   // Execute ClientRoundOne, and wait for response from ServerRoundTwo.
-  std::cout
-      << "[Round 1] Client: Received encrypted set from the server, double encrypting..."
-      << std::endl;
-  std::cout << "[Round 1] Client: Sending double encrypted server data and "
-               "single-encrypted client data to the server."
-            << std::endl
-            << "[Round 1] Client: Waiting for encrypted intersection sum..." << std::endl;
+  // std::cout
+  //     << "[Round 1] Client: Received encrypted set from the server, double encrypting..."
+  //     << std::endl;
+  // std::cout << "[Round 1] Client: Sending double encrypted server data and "
+  //              "single-encrypted client data to the server."
+  //           << std::endl
+  //           << "[Round 1] Client: Waiting for encrypted intersection sum..." << std::endl;
   auto client_round_one_status =
       client->Handle(server_round_one, &invoke_server_handle_message_sink);
       
@@ -178,17 +190,17 @@ int ExecuteProtocol() {
   }
 
   // Execute ServerRoundTwo.
-  std::cout << "[Round 2] Client: Sending double encrypted server data and "
-               "single-encrypted client data to the server."
-            << std::endl
-            << "[Round 2] Client: Waiting for encrypted intersection sum..." << std::endl;
+  // std::cout << "[Round 2] Client: Sending double encrypted server data and "
+  //              "single-encrypted client data to the server."
+  //           << std::endl
+  //           << "[Round 2] Client: Waiting for encrypted intersection sum..." << std::endl;
   ServerMessage server_round_two =
       invoke_server_handle_message_sink.last_server_response();
 
   // Compute the intersection size and sum.
-  std::cout << "Client: Received response from the server. Decrypting the "
-               "intersection-sum."
-            << std::endl;
+  // std::cout << "Client: Received response from the server. Decrypting the "
+  //              "intersection-sum."
+  //           << std::endl;
   auto intersection_size_and_sum_status =
       client->Handle(server_round_two, &invoke_server_handle_message_sink);
   if (!intersection_size_and_sum_status.ok()) {
@@ -204,6 +216,8 @@ int ExecuteProtocol() {
               << client_print_output_status << std::endl;
     return 1;
   }
+
+  t_total->cout_elapsed("Client total time");
 
   return 0;
 }

@@ -14,7 +14,7 @@
  */
 
 #include "server_impl.h"
-
+#include "timer.h"
 #include <algorithm>
 
 #include "crypto/paillier.h"
@@ -30,6 +30,9 @@ namespace private_join_and_compute {
  
 StatusOr<PrivateIntersectionSumServerMessage::ServerRoundOne>
 PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
+
+  auto t = std::unique_ptr<Timer>(new Timer());
+
   if (ec_cipher_ != nullptr) {
     return InvalidArgumentError("Attempted to call EncryptSet twice.");
   }
@@ -41,8 +44,10 @@ PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
   }
   ec_cipher_ = std::move(ec_cipher.ValueOrDie());
 
-  std::cout 
-    << "[Round1] Server got cipher, encrypting elements and sending to client" << std::endl;
+  t -> cout_elapsed("Server Round 1 init cipher");  
+
+
+  t -> reset();
 
   PrivateIntersectionSumServerMessage::ServerRoundOne result;
   for (const std::string& input : inputs_) {
@@ -54,8 +59,7 @@ PrivateIntersectionSumProtocolServerImpl::EncryptSet() {
     }
     *encrypted->mutable_element() = encrypted_element.ValueOrDie();
   }
-
-  
+  t -> cout_elapsed("Server Round 1 encrypt data");  
 
   return result;
 }
@@ -67,17 +71,21 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
     return InvalidArgumentError(
         "Called ComputeIntersection before EncryptSet.");
   }
+
+  auto t = std::unique_ptr<Timer>(new Timer());
+
   PrivateIntersectionSumServerMessage::ServerRoundTwo result;
   BigNum N = ctx_->CreateBigNum(client_message.public_key());
   PublicPaillier public_paillier(ctx_, N, 2);
+
+  t->cout_elapsed("Server Round 2 Paillier prep");
 
   std::vector<EncryptedElement> server_set, client_set, intersection;
 
   // First, we re-encrypt the client party's set, so that we can compare with
   // the re-encrypted set received from Server 
-  std::cout 
-    << "[Round2] Reencrypt client elements" << std::endl;
-
+  
+  t->reset();
   for (const EncryptedElement& element :
        client_message.encrypted_set().elements()) {
 
@@ -95,11 +103,9 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
        client_message.reencrypted_set().elements()) {
     server_set.push_back(element);
   }
+  t->cout_elapsed("Server Round 2 reencrypt elements");
 
-  std::cout 
-    << "[Round2] Finding the intersection (sorting & intersection)" << std::endl;
-
-
+  t->reset();
   // std::set_intersection requires sorted inputs.
   std::sort(client_set.begin(), client_set.end(),
             [](const EncryptedElement& a, const EncryptedElement& b) {
@@ -116,7 +122,7 @@ PrivateIntersectionSumProtocolServerImpl::ComputeIntersection(
         return a.element() < b.element();
       });
 
-    std::cout << "[Round2] intersection size: " << intersection.size() << " sending back to client"<< std::endl;
+  t->cout_elapsed("Server Round 2 intersection search");
 
   // From the intersection we compute the sum of the associated values, which is
   // the result we return to the client.

@@ -25,6 +25,7 @@
 #include "protocol_client.h"
 #include "util/status.inc"
 #include "crypto/ec_commutative_cipher.h"
+#include "timer.h"
 
 namespace private_join_and_compute {
 

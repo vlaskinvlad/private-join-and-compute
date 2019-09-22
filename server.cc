@@ -33,6 +33,7 @@
 #include "private_join_and_compute_rpc_impl.h"
 #include "protocol_server.h"
 #include "absl/memory/memory.h"
+#include "timer.h"
 
 
 DEFINE_string(port, "0.0.0.0:10501", "Port on which to listen");
@@ -62,6 +63,8 @@ read ( const std::string& filename, std::string& data )
 
 int RunServer() {
   std::cout << "Server: loading data... " << std::endl;
+  auto t_total = std::unique_ptr<Timer>(new Timer);
+  
   auto maybe_server_identifiers =
       ::private_join_and_compute::ReadServerDatasetFromFile(FLAGS_server_data_file);
   if (!maybe_server_identifiers.ok()) {
@@ -100,8 +103,6 @@ int RunServer() {
   //auto credentials =  ::grpc::experimental::LocalServerCredentials(grpc_local_connect_type::LOCAL_TCP);
   //builder.AddListeningPort(FLAGS_port, credentials);
 
-
-
   ::grpc_compression_level compression_level = static_cast<grpc_compression_level>(FLAGS_compression_level);
 
   builder.SetMaxSendMessageSize(FLAGS_message_size)
@@ -119,6 +120,8 @@ int RunServer() {
       },
       grpc_server.get());
 
+  auto t_server = std::unique_ptr<Timer>(new Timer);
+
   while (!service.protocol_finished()) {
     // Wait for the server to be done, and then shut the server down.
   }
@@ -126,8 +129,8 @@ int RunServer() {
   // Shut down server.
   grpc_server->Shutdown();
   grpc_server_thread.join();
-  std::cout << "Server completed protocol and shut down." << std::endl;
-
+  t_server->cout_elapsed("Server grpc");
+  t_total->cout_elapsed("Server total");
   return 0;
 }
 

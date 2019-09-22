@@ -1,5 +1,7 @@
 ./bazel-*
 .vscode/
+.ijwb/
+.idea/*
 *.key
 *.crt
 *.csr
