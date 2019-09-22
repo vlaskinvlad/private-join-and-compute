@@ -4,6 +4,9 @@ Todo:
 - Turn on SSL [X]
 - Run for million sets
 
+
+http://www.secg.org/sec2-v2.pdf
+
 ```
 Server:
 PrivateIntersectionSumServerMessage:
