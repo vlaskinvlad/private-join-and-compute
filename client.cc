@@ -131,9 +131,9 @@ int ExecuteProtocol() {
 	std::string key;
 	std::string root;
 
-  read ( "client.crt", cert );
-	read ( "client.key", key );
-	read ( "ca.crt", root );
+  read ( "certs/client.crt", cert );
+	read ( "certs/client.key", key );
+	read ( "certs/ca.crt", root );
 
   grpc::SslCredentialsOptions opts =
 		{
